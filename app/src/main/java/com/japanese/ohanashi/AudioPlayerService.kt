@@ -51,7 +51,7 @@ class AudioPlayerService : Service() {
     val binder               = ServiceBinder()
     private var mediaPlayer  = MediaPlayer()
     private val currentTrack = MutableStateFlow<Story>(defaultStories[0])
-    private var trackList    = mutableListOf<Story>()
+    private var trackList    = defaultStories.toMutableList()
     private val scope        = CoroutineScope(Dispatchers.Main)
     private var job : Job? = null
 
@@ -101,17 +101,20 @@ class AudioPlayerService : Service() {
         mediaPlayer = MediaPlayer()
 
         val index = trackList.indexOf(currentTrack.value)
-        val prevIndex = if (index<0) trackList.size - 1 else index - 1
-        val prevItem = trackList[prevIndex]
+        val prevIndex = if (index>0) index - 1 else trackList.size - 1
+        if (prevIndex >= 0)
+        {
+            val prevItem = trackList[prevIndex]
 
-        currentTrack.update { prevItem }
+            currentTrack.update { prevItem }
 
-        mediaPlayer.setDataSource(this, getRawUri(currentTrack.value.audioId))
-        mediaPlayer.prepareAsync()
-        mediaPlayer.setOnPreparedListener {
-            mediaPlayer.start()
-            sendNotification(currentTrack.value)
-            updateDuration()
+            mediaPlayer.setDataSource(this, getRawUri(currentTrack.value.audioId))
+            mediaPlayer.prepareAsync()
+            mediaPlayer.setOnPreparedListener {
+                mediaPlayer.start()
+                sendNotification(currentTrack.value)
+                updateDuration()
+            }
         }
     }
 
@@ -177,8 +180,10 @@ class AudioPlayerService : Service() {
             .setMediaSession(session.sessionToken)
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSilent(true)
             .setStyle(style)
             .setContentTitle(story.title)
+//            .setContentText("Current Sentence")
             .addAction(R.drawable.ic_baseline_navigate_before_24, "prev", createPrevPendingIntent())
             .addAction(
                 if (mediaPlayer.isPlaying)
@@ -188,6 +193,7 @@ class AudioPlayerService : Service() {
                 "play_pause", createPlayPausePendingIntent())
             .addAction(R.drawable.ic_baseline_navigate_next_24, "next", createNextPendingIntent())
             .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setProgress(100, 25, false)
 //            .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.big_image))
             .build()
 
@@ -204,21 +210,21 @@ class AudioPlayerService : Service() {
 
     fun createPrevPendingIntent() : PendingIntent {
         val intent = Intent(this, AudioPlayerService::class.java).apply {
-            action = PREV
+            action = Actions.Previous.toString()
         }
         return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     fun createNextPendingIntent() : PendingIntent {
         val intent = Intent(this, AudioPlayerService::class.java).apply {
-            action = NEXT
+            action = Actions.Next.toString()
         }
         return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
     fun createPlayPausePendingIntent() : PendingIntent {
         val intent = Intent(this, AudioPlayerService::class.java).apply {
-            action = PLAY_PAUSE
+            action = Actions.PauseResume.toString()
         }
         return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }

@@ -74,9 +74,14 @@ import kotlinx.coroutines.flow.collectLatest
 
 /**
 TODO:
- - Load Story from json
+ - Restructure to properly use the AudioPlayerService (
+   - "reconnect" after configuration change
+   - display correct time code
+   - play correct audio (cards)
+ - Use a custom notification layout with RemoteViews
+ - (Load Story from json)
  - Add scrollbar to Cards
- - Randomize cards option
+ - "Randomize cards" option
  - Listening comprehension mode: play audio first, reveal transcript only after pressing a button
  - Spaced repetition for cards function
  - Settings drop down with:
