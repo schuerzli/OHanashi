@@ -1,12 +1,9 @@
 package com.japanese.ohanashi
 
-import android.app.Activity.BIND_AUTO_CREATE
-import android.content.ComponentName
+import android.app.Application
 import android.content.Context
-import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
-import android.os.IBinder
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -70,7 +67,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collectLatest
 
 /**
 TODO:
@@ -127,60 +123,18 @@ var actionBarHeightDp: Dp  = 35.dp
 
 class MainActivity : ComponentActivity() {
 
-    private val isPlaying       = MutableStateFlow(false)
-    private val maxDuration     = MutableStateFlow(0f)
-    private val currentDuration = MutableStateFlow(0f)
-    private val currentTrack    = MutableStateFlow(defaultStories[0])
-
-    private var audioService : AudioPlayerService? = null
-    private var isBound = false
-
-    val connection = object : ServiceConnection {
-
-        override fun onServiceConnected(p0: ComponentName?, binder: IBinder?) {
-            audioService = (binder as AudioPlayerService.ServiceBinder).getService()
-
-            binder.setAudioList(defaultStories)
-
-            lifecycleScope.launch {
-                binder.isPlaying().collectLatest {
-                    isPlaying.value = it
-                }
-            }
-
-            lifecycleScope.launch {
-                binder.maxDuration().collectLatest {
-                    maxDuration.value = it
-                }
-            }
-
-            lifecycleScope.launch {
-                binder.currentDuration().collectLatest {
-                    currentDuration.value = it
-                }
-            }
-
-            lifecycleScope.launch {
-                binder.currentTrack().collectLatest {
-                    currentTrack.value = it
-                }
-            }
-
-            isBound = true
-        }
-
-        override fun onServiceDisconnected(p0: ComponentName?) {
-            isBound = false
-        }
-    }
-
-    class AudioServiceController (
-        val connection: ServiceConnection,
-        val playPause: () -> Unit,
-        val startService: () -> Unit,
-        val pauseResume: () -> Unit,
-        val previous: () -> Unit,
-        val next: () -> Unit)
+//    private val isPlaying       = MutableStateFlow(false)
+//    private val maxDuration     = MutableStateFlow(0f)
+//    private val currentDuration = MutableStateFlow(0f)
+//    private val currentTrack    = MutableStateFlow(defaultStories[0])
+//    private var audioService : AudioPlayerService? = null
+//    class AudioServiceController (
+//        val connection: ServiceConnection,
+//        val playPause: () -> Unit,
+//        val startService: () -> Unit,
+//        val pauseResume: () -> Unit,
+//        val previous: () -> Unit,
+//        val next: () -> Unit)
 
     suspend fun <T> save(key: Preferences.Key<T>, value: T) {
         dataStore.edit {
@@ -222,42 +176,40 @@ class MainActivity : ComponentActivity() {
 //        stopService(stopIntent)
 //        unbindService(connection)
 
-        val audioServiceController = AudioServiceController(
-            connection   = connection,
-            playPause = {
-                if (audioService == null)
-                {
-                    val startIntent = Intent(this@MainActivity, AudioPlayerService::class.java)
-                    startService(startIntent)
-                    bindService(startIntent, connection, BIND_AUTO_CREATE)
-//                    Intent(AudioPlayerService.Actions.Start.toString()).also {
-//                        startService(it)
-//                        bindService(it, connection, BIND_AUTO_CREATE)
-//                    }
-                }
-                else
-                {
-                    audioService?.pauseResume()
-                }
-            },
-            startService = {
-                Intent(AudioPlayerService.Actions.Start.toString()).also {
-                    startService(it)
-                    bindService(it, connection, BIND_AUTO_CREATE)
-                }
-            },
-            pauseResume  = { audioService?.pauseResume() },
-            previous = { audioService?.prev() },
-            next = { audioService?.next() }
-        )
+//        val audioServiceController = AudioServiceController(
+//            connection   = connection,
+//            playPause = {
+//                if (audioService == null)
+//                {
+//                    val startIntent = Intent(this@MainActivity, AudioPlayerService::class.java)
+//                    startService(startIntent)
+//                    bindService(startIntent, connection, BIND_AUTO_CREATE)
+////                    Intent(AudioPlayerService.Actions.Start.toString()).also {
+////                        startService(it)
+////                        bindService(it, connection, BIND_AUTO_CREATE)
+////                    }
+//                }
+//                else
+//                {
+//                    audioService?.pauseResume()
+//                }
+//            },
+//            startService = {
+//                Intent(AudioPlayerService.Actions.Start.toString()).also {
+//                    startService(it)
+//                    bindService(it, connection, BIND_AUTO_CREATE)
+//                }
+//            },
+//            pauseResume  = { audioService?.pauseResume() },
+//            previous = { audioService?.prev() },
+//            next = { audioService?.next() }
+//        )
         setContent {
             ProvideStoryVM {
                 val storyVM = LocalStory.current
                 OHanashi(
                     saveStoryIndex = { lifecycleScope.launch { save(STORY_INDEX, storyVM.storyIndex.value) } },
-                    audioService = audioService,
-                    audioServiceController = audioServiceController,
-                    isPlaying = isPlaying.collectAsState().value )
+                )
             }
         }
     }
@@ -265,24 +217,18 @@ class MainActivity : ComponentActivity() {
 
 @ExperimentalMaterialApi
 @Composable
-fun OHanashi(saveStoryIndex: () -> Unit, audioService: AudioPlayerService?, audioServiceController : MainActivity.AudioServiceController, isPlaying : Boolean) {
+fun OHanashi(saveStoryIndex: () -> Unit) {
     var darkTheme by remember { mutableStateOf(true) }
 
     OHanashiTheme(darkTheme = darkTheme) {
-//        ProvideAudioPlayer {
             ProvideNavController {
                 val navController = LocalNavHostController.current
-                val audioPlayer = viewModel<VM_AudioPlayer>(factory = VM_AudioPlayerFactory(LocalContext.current))
+                val audioPlayer : VM_AudioPlayer = viewModel(factory = VM_AudioPlayerFactory(LocalContext.current.applicationContext as Application))
 
                 Menus(navController, { darkTheme = !darkTheme}) {
                     NavHost(navController = navController, startDestination = Screen.StoryScreen.route) {
                         composable(route = Screen.StoryScreen.route) {
-                            StoryScreen(
-                                navController = navController,
-                                audioPlayer = audioPlayer,
-                                audioService = audioService,
-                                audioServiceController = audioServiceController,
-                                isPlaying = isPlaying)
+                            StoryScreen( navController = navController, audioPlayer = audioPlayer)
                             saveStoryIndex()
                         }
                         composable(route = Screen.EditStoryScreen.route
@@ -433,9 +379,6 @@ fun IconButton(
 fun StoryScreen(
     navController: NavController,
     audioPlayer: VM_AudioPlayer,
-    audioService: AudioPlayerService?,
-    audioServiceController : MainActivity.AudioServiceController,
-    isPlaying: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -445,13 +388,12 @@ fun StoryScreen(
     ) {
         val showFurigana = LocalStory.current.showFurigana
         val kanaOnly     = LocalStory.current.kanaOnly
-//        val isPlaying    = audioService?.isPlaying?.collectAsState()?.value ?: false
+        val isPlaying    = audioPlayer.isPlaying
 
         if (LocalStory.current.stories.value.size > 0) {
             if (LocalStory.current.storyIndex.value > LocalStory.current.stories.value.lastIndex) {
                 LocalStory.current.storyIndex.value = LocalStory.current.stories.value.lastIndex
             }
-            val applicationContext = LocalContext.current.applicationContext
 
             AudioPlayerStateless(
                 modifier = Modifier.height(140.dp),
@@ -468,10 +410,13 @@ fun StoryScreen(
 //                    viewModel.showMillis.value = !viewModel.showMillis.value
                 },
                 onTogglePlayButtonClick = {
-                    audioServiceController.playPause()
+                    if (isPlaying.value)
+                        audioPlayer.stopService()
+                    else
+                        audioPlayer.startService()
                 },
-                isPlaying = isPlaying,
-                currentTimeText = audioService?.currentDuration?.collectAsState()?.value?.toString() ?: "---" //viewModel.formatNormalizedPositionTime(sliderPosition)
+                isPlaying = isPlaying.value,
+                currentTimeText = audioPlayer.formatCurrentTime() ?: "---" //viewModel.formatNormalizedPositionTime(sliderPosition)
             )
 
             StoryViewControl(

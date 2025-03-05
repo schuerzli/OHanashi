@@ -1,7 +1,12 @@
 package com.japanese.ohanashi
 
+import android.app.Activity.BIND_AUTO_CREATE
+import android.app.Application
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
+import android.os.IBinder
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,6 +23,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -28,30 +36,32 @@ import com.google.android.exoplayer2.Player.Listener
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
 import com.google.android.exoplayer2.util.Util
+import com.japanese.ohanashi.stories.defaultStories
 import com.japanese.ohanashi.ui.theme.OHanashiTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class VM_AudioPlayerFactory(val context: Context) : ViewModelProvider.NewInstanceFactory() {
+class VM_AudioPlayerFactory(val application:Application) : ViewModelProvider.NewInstanceFactory() {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return VM_AudioPlayer(context) as T
+        return VM_AudioPlayer(application) as T
     }
 }
 
-//val LocalAudioPlayer = staticCompositionLocalOf<VM_AudioPlayer> {
-//    error("No PodcastSearchViewModel provided")
-//}
-//@Composable
-//fun ProvideAudioPlayer(content: @Composable () -> Unit) {
-//    val audioPlayer: VM_AudioPlayer = viewModel(factory = VM_AudioPlayerFactory(LocalContext.current))
-//    CompositionLocalProvider(
-//        LocalAudioPlayer provides audioPlayer,
-//        content = content
-//    )
-//}
+val LocalAudioPlayer = staticCompositionLocalOf<VM_AudioPlayer> {
+    error("No PodcastSearchViewModel provided")
+}
+@Composable
+fun ProvideAudioPlayer(application: Application, content: @Composable () -> Unit) {
+    val audioPlayer: VM_AudioPlayer = viewModel(factory = VM_AudioPlayerFactory(application))
+    CompositionLocalProvider(
+        LocalAudioPlayer provides audioPlayer,
+        content = content
+    )
+}
 
-class VM_AudioPlayer(context: Context) : ViewModel() {
-    val player: ExoPlayer = ExoPlayer.Builder(context).build().apply{
+class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
+    val player: ExoPlayer = ExoPlayer.Builder(application).build().apply{
         addListener(object: Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
 //                super.onPlaybackStateChanged(playbackState)
@@ -71,6 +81,89 @@ class VM_AudioPlayer(context: Context) : ViewModel() {
     private val startTime: MutableState<Float> = mutableStateOf(-1f)
     // the time in seconds when playback should end
     private val endTime: MutableState<Float> = mutableStateOf(-1f)
+
+    private var isServiceRunning = MutableLiveData(false)
+    val IsServiceRunning : LiveData<Boolean> = isServiceRunning
+    private var mBound = MutableLiveData(false)
+    val IsBound: LiveData<Boolean> = mBound
+    var audioServiceBinder : AudioPlayerService.ServiceBinder? = null
+
+    val connection = object : ServiceConnection {
+
+        override fun onServiceConnected(p0: ComponentName?, binder: IBinder?) {
+            audioServiceBinder = (binder as AudioPlayerService.ServiceBinder)
+            var audioService = binder.getService()
+
+            binder.setAudioList(defaultStories)
+
+            val context = getApplication<Application>()
+            viewModelScope.launch {
+                binder.isPlaying().collectLatest {
+                    isPlaying.value = it
+                }
+            }
+
+            viewModelScope.launch {
+                binder.maxDuration().collectLatest {
+                    progress.value = it
+                }
+            }
+//            viewModelScope.launch {
+//                binder.currentDuration().collectLatest {
+//                    currentDuration.value = it
+//                }
+//            }
+//            viewModelScope.launch {
+//                binder.currentTrack().collectLatest {
+//                    currentTrack.value = it
+//                }
+//            }
+
+            mBound.value = true
+        }
+
+        override fun onServiceDisconnected(p0: ComponentName?) {
+            mBound.value = false
+        }
+    }
+
+    fun startService()
+    {
+        if (isServiceRunning.value == false)
+        {
+            val context = getApplication<Application>()
+            val startIntent = Intent(context, AudioPlayerService::class.java)
+            context.startService(startIntent)
+            context.bindService(startIntent, connection, BIND_AUTO_CREATE)
+//            Intent(context, AudioPlayerService::class.java).also {
+//                it.action = AudioPlayerService.Actions.Start.toString()
+//                context.startService(it)
+//                context.bindService(it, connection, BIND_AUTO_CREATE)
+                isServiceRunning.postValue(true)
+//            }
+        }
+        else
+        {
+            audioServiceBinder?.pauseResume()
+        }
+    }
+    fun stopService() {
+        audioServiceBinder?.pauseResume()
+
+//        isPlaying.value = false
+//        if (mBound.value == true)
+//        {
+//            val context = getApplication<Application>()
+//            val stopIntent  = Intent(context, AudioPlayerService::class.java)
+//            context.stopService(stopIntent)
+//            context.unbindService(connection)
+////        Intent(context, AudioPlayerService::class.java).also {
+////            it.action = AudioPlayerService.Actions.Stop.toString()
+////            context.stopService(it)
+//            isServiceRunning.postValue(false)
+////        }
+//        }
+    }
 
     fun setStartTime(startTime: Float) {
         this.startTime.value = startTime

@@ -1,5 +1,6 @@
 package com.japanese.ohanashi
 
+import android.app.Application
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -572,7 +573,7 @@ fun StoryViewStateless(
 fun StoryViewPreview() {
     OHanashiTheme {
         StoryViewStateless(
-            audioPlayer = viewModel<VM_AudioPlayer>(factory = VM_AudioPlayerFactory(LocalContext.current)),
+            audioPlayer = viewModel<VM_AudioPlayer>(factory = VM_AudioPlayerFactory(LocalContext.current.applicationContext as Application)),
             cardText  = shirayukihime.cards[1].text,
             cardNotes = shirayukihime.cards[1].notes,
             cardIndex = 2,

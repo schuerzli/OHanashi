@@ -31,7 +31,8 @@ class AudioPlayerService : Service() {
         Previous,
         Next,
         PauseResume,
-        Start
+        Start,
+        Stop
     }
 
     inner class ServiceBinder : Binder() {
@@ -40,6 +41,10 @@ class AudioPlayerService : Service() {
 
         fun setAudioList(list:List<Story>) {
             this@AudioPlayerService.trackList = list.toMutableList()
+        }
+
+        fun pauseResume() {
+            this@AudioPlayerService.pauseResume()
         }
 
         fun maxDuration()     = this@AudioPlayerService.maxDuration
@@ -227,6 +232,13 @@ class AudioPlayerService : Service() {
             action = Actions.PauseResume.toString()
         }
         return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Cleanup when the service is destroyed
+        stopForeground(true)
+        stopSelf()
     }
 
 }
