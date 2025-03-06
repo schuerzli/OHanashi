@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -38,8 +39,10 @@ import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
 import com.google.android.exoplayer2.util.Util
 import com.japanese.ohanashi.stories.defaultStories
 import com.japanese.ohanashi.ui.theme.OHanashiTheme
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class VM_AudioPlayerFactory(val application:Application) : ViewModelProvider.NewInstanceFactory() {
@@ -61,31 +64,24 @@ fun ProvideAudioPlayer(application: Application, content: @Composable () -> Unit
 }
 
 class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
-    val player: ExoPlayer = ExoPlayer.Builder(application).build().apply{
-        addListener(object: Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) {
-//                super.onPlaybackStateChanged(playbackState)
-                if (playbackState == ExoPlayer.STATE_READY) {
-//                    seekTo(startTime)
-                    onProgressUpdate(progress.value)
-                }
-            }
-        })
-    }
     var onProgressUpdate: (newProgress: Float) -> Unit = {}
 
+    // should all of these be LiveData?
     val isPlaying:  MutableState<Boolean> = mutableStateOf(false)
     val showMillis: MutableState<Boolean> = mutableStateOf(false)
     val progress:   MutableState<Float>   = mutableStateOf(0f)
+    val currentPosition: MutableState<Float> = mutableStateOf(0f)
+    val duration:        MutableState<Int>   = mutableStateOf(0)
     // the time in seconds where playback should start
     private val startTime: MutableState<Float> = mutableStateOf(-1f)
     // the time in seconds when playback should end
     private val endTime: MutableState<Float> = mutableStateOf(-1f)
+    private var progressUpdateJob : Job?   = null
 
     private var isServiceRunning = MutableLiveData(false)
-    val IsServiceRunning : LiveData<Boolean> = isServiceRunning
     private var mBound = MutableLiveData(false)
-    val IsBound: LiveData<Boolean> = mBound
+//    val IsServiceRunning : LiveData<Boolean> = isServiceRunning
+//    val IsBound: LiveData<Boolean> = mBound
     var audioServiceBinder : AudioPlayerService.ServiceBinder? = null
 
     val connection = object : ServiceConnection {
@@ -102,17 +98,17 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
                     isPlaying.value = it
                 }
             }
-
             viewModelScope.launch {
-                binder.maxDuration().collectLatest {
-                    progress.value = it
+                binder.currentPosition().collectLatest {
+                    currentPosition.value = it
                 }
             }
-//            viewModelScope.launch {
-//                binder.currentDuration().collectLatest {
-//                    currentDuration.value = it
-//                }
-//            }
+            viewModelScope.launch {
+                binder.currentTrackDuration().collectLatest {
+                    duration.value = it
+                }
+            }
+
 //            viewModelScope.launch {
 //                binder.currentTrack().collectLatest {
 //                    currentTrack.value = it
@@ -129,7 +125,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 
     fun startService()
     {
-        if (isServiceRunning.value == false)
+        if (mBound.value == false)
         {
             val context = getApplication<Application>()
             val startIntent = Intent(context, AudioPlayerService::class.java)
@@ -142,46 +138,36 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
                 isServiceRunning.postValue(true)
 //            }
         }
-        else
-        {
-            audioServiceBinder?.pauseResume()
-        }
     }
     fun stopService() {
-       // audioServiceBinder?.pauseResume()
-
-//        isPlaying.value = false
+        val context = getApplication<Application>()
         if (mBound.value == true)
         {
-            val context = getApplication<Application>()
-            val stopIntent  = Intent(context, AudioPlayerService::class.java)
             context.unbindService(connection)
+        }
+//        if (isServiceRunning.value == true)
+//        {
+            val stopIntent  = Intent(context, AudioPlayerService::class.java)
             context.stopService(stopIntent)
 //        Intent(context, AudioPlayerService::class.java).also {
 //            it.action = AudioPlayerService.Actions.Stop.toString()
 //            context.stopService(it)
+//        }
             isServiceRunning.postValue(false)
 //        }
-        }
     }
 
     fun setStartTime(startTime: Float) {
         this.startTime.value = startTime
-        if (startTimeMillis > player.currentPosition) {
-            player.seekTo(startTimeMillis)
-        }
+//        if (startTimeMillis > player.currentPosition) {
+//            player.seekTo(startTimeMillis)
+//        }
     }
     fun setEndTime(startTime: Float) {
         this.endTime.value = startTime
-        if (endTimeMillis < player.currentPosition) {
-            player.seekTo(endTimeMillis)
-        }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        player.stop()
-        player.release()
+//        if (endTimeMillis < player.currentPosition) {
+//            player.seekTo(endTimeMillis)
+//        }
     }
 
     val startTimeMillis: Long get() = calcStartTime()
@@ -222,7 +208,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
     }
 
     fun calcEndTime(): Long {
-        if (endTime.value <= 0) return player.duration
+        if (endTime.value <= 0) return duration.value.toLong()
 //        if (endIndex.value < startIndex.value) return startTime
 
         val endMillis = (endTime.value * 1000L).toLong()
@@ -236,85 +222,108 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 //        if (startIndex.value > endIndex.value) return 0f
         val start  = startTimeMillis
         val end    = endTimeMillis
-        val result = ((player.currentPosition - start) / (end - start).toFloat())
+        val result = ((currentPosition.value - start) / (end - start).toFloat())
         return result
     }
 
-    fun togglePlay()
-    {
-        if (isPlaying.value && mBound.value == true)
-        {
+    fun togglePlay() {
+        if (mBound.value == true) {
             audioServiceBinder?.pauseResume()
-        }
-        else
-        {
-            startService()
-        }
-
-    }
-
-    fun play() {
-
-        isPlaying.value = true
-        if (player.currentPosition >= endTimeMillis) {
-            player.seekTo(startTimeMillis)
+            if (isPlaying.value) {
+                startProgressUpdate()
+            }
+            else {
+                stopProgressUpdate()
+            }
         }
         else {
-            player.play()
-        }
-        viewModelScope.launch{
+            startService()
             startProgressUpdate()
         }
     }
 
+//    fun play() {
+//
+//        isPlaying.value = true
+//        if (player.currentPosition >= endTimeMillis) {
+//            player.seekTo(startTimeMillis)
+//        }
+//        else {
+//            player.play()
+//        }
+//        viewModelScope.launch{
+//            startProgressUpdate()
+//        }
+//    }
+
     fun pause() {
-        player.pause()
-        isPlaying.value = false
+        audioServiceBinder?.pause()
+//        isPlaying.value = false
     }
 
     fun setProgress(newProgress: Float) {
 
-        var seekTo: Long = (newProgress * player.duration).toLong()
+        var seekTo: Long = (newProgress * duration.value).toLong()
         if (startTime.value > 0 || endTime.value > 0) {
             val start = if(startTime.value > 0) startTime.value else 0f
-            val end =   if(endTime.value <= 0 || endTime.value > player.duration / 1000f) (player.duration / 1000f) else endTime.value
+            val end =   if(endTime.value <= 0 || endTime.value > duration.value / 1000f) (duration.value / 1000f) else endTime.value
 
             seekTo = ((start + ((end - start) * newProgress)) * 1000f).toLong()
         }
 
-        player.playWhenReady = isPlaying.value
-        progress.value = newProgress
-        player.seekTo(seekTo)
+//        player.playWhenReady = isPlaying.value
+//        progress.value = newProgress
+//        player.seekTo(seekTo)
     }
 
-    private suspend fun startProgressUpdate()
-    {
-        while(isPlaying.value) {
-            progress.value = calcMappedProgress()
-            onProgressUpdate(progress.value)
-            delay(200L)
-            // TODO: player.currentPosition is -superHighNumber for some time after first play :(
-            if (player.currentPosition >= endTimeMillis) stop()
+    private fun startProgressUpdate() {
+        progressUpdateJob?.cancel()
+        progressUpdateJob = viewModelScope.launch {
+
+//            while(isPlaying.value) {
+            while(true) {
+                progress.value = calcMappedProgress()
+                onProgressUpdate(progress.value)
+                delay(100L)
+    //            // TODO: player.currentPosition is -superHighNumber for some time after first play :(
+    //            if (player.currentPosition >= endTimeMillis) stop()
+            }
+
         }
     }
-
-    private fun stop() {
-        isPlaying.value = false
-        player.playWhenReady = false
-        player.pause()
-        player.seekTo(startTimeMillis)
-        progress.value = 0f
-        onProgressUpdate(progress.value)
+    private fun stopProgressUpdate() {
+        progressUpdateJob?.cancel()
+        progressUpdateJob = null
     }
+
+//    private suspend fun startProgressUpdate()
+//    {
+//        while(isPlaying.value) {
+//            progress.value = calcMappedProgress()
+//            onProgressUpdate(progress.value)
+//            delay(200L)
+//            // TODO: player.currentPosition is -superHighNumber for some time after first play :(
+//            if (player.currentPosition >= endTimeMillis) stop()
+//        }
+//    }
+
+//    private fun stop() {
+//        isPlaying.value = false
+//        player.playWhenReady = false
+//        player.pause()
+//        player.seekTo(startTimeMillis)
+//        progress.value = 0f
+//        onProgressUpdate(progress.value)
+//    }
 
     fun setStartAndEnd(startTimeSeconds: Float = -1f, endTimeSeconds: Float = -1f, resetProgress: Boolean = false) {
         setStartTime(startTimeSeconds)
         setEndTime(endTimeSeconds)
         if (resetProgress) {
-            player.seekTo(startTimeMillis)
-            if (player.currentPosition > 0) {
-                progress.value = 0f
-            }
+//            player.seekTo(startTimeMillis)
+//            if (player.currentPosition > 0) {
+//                progress.value = 0f
+//            }
         }
     }
 
@@ -326,11 +335,19 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
         val dataSourceFactory = DefaultDataSourceFactory(context, Util.getUserAgent(context, context.packageName))
         val mediaItem = MediaItem.fromUri(resource)
         val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
-        player.setMediaSource(mediaSource)
-//        player.addMediaSource(mediaSource)
-        player.prepare()
-        player.seekTo(startTimeMillis)
+//        player.setMediaSource(mediaSource)
+////        player.addMediaSource(mediaSource)
+//        player.prepare()
+//        player.seekTo(startTimeMillis)
     }
+
+    // called when Activity is destroyed when app shuts down
+    override fun onCleared() {
+        super.onCleared()
+        stopProgressUpdate()
+        stopService()
+    }
+
 }
 
 @Composable
@@ -365,9 +382,7 @@ fun AudioPlayerControlsImpl(modifier: Modifier = Modifier, viewModel: VM_AudioPl
         },
         onToggleMillisClicked = { viewModel.showMillis.value = !viewModel.showMillis.value },
         onTogglePlayButtonClick = {
-//            viewModel.setResource(context, resourceId)
-            if (isPlaying) viewModel.pause()
-            else viewModel.play()
+            viewModel.togglePlay()
         },
         isPlaying = isPlaying,
         currentTimeText = viewModel.formatNormalizedPositionTime(sliderPosition)

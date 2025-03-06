@@ -2,6 +2,7 @@ package com.japanese.ohanashi
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -70,6 +71,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 
@@ -128,19 +130,6 @@ var actionBarHeightDp: Dp  = 35.dp
 
 class MainActivity : ComponentActivity() {
 
-//    private val isPlaying       = MutableStateFlow(false)
-//    private val maxDuration     = MutableStateFlow(0f)
-//    private val currentDuration = MutableStateFlow(0f)
-//    private val currentTrack    = MutableStateFlow(defaultStories[0])
-//    private var audioService : AudioPlayerService? = null
-//    class AudioServiceController (
-//        val connection: ServiceConnection,
-//        val playPause: () -> Unit,
-//        val startService: () -> Unit,
-//        val pauseResume: () -> Unit,
-//        val previous: () -> Unit,
-//        val next: () -> Unit)
-
     suspend fun <T> save(key: Preferences.Key<T>, value: T) {
         dataStore.edit {
                 settings ->
@@ -167,48 +156,6 @@ class MainActivity : ComponentActivity() {
 ////            actionBarHeightPx = TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics)
 ////            actionBarHeightDp = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, actionBarHeightPx.toFloat(), resources.displayMetrics).dp
 //        }
-
-//        val startIntent = Intent(this@MainActivity, AudioPlayerService::class.java)
-//        startService(startIntent)
-//        bindService(startIntent, connection, BIND_AUTO_CREATE)
-//        OR -----
-//        Intent(AudioPlayerService.Actions.Start.toString()).also {
-//            startService(it)
-//            bindService(it, connection, BIND_AUTO_CREATE)
-//        }
-
-//        val stopIntent  = Intent(this, AudioPlayerService::class.java)
-//        stopService(stopIntent)
-//        unbindService(connection)
-
-//        val audioServiceController = AudioServiceController(
-//            connection   = connection,
-//            playPause = {
-//                if (audioService == null)
-//                {
-//                    val startIntent = Intent(this@MainActivity, AudioPlayerService::class.java)
-//                    startService(startIntent)
-//                    bindService(startIntent, connection, BIND_AUTO_CREATE)
-////                    Intent(AudioPlayerService.Actions.Start.toString()).also {
-////                        startService(it)
-////                        bindService(it, connection, BIND_AUTO_CREATE)
-////                    }
-//                }
-//                else
-//                {
-//                    audioService?.pauseResume()
-//                }
-//            },
-//            startService = {
-//                Intent(AudioPlayerService.Actions.Start.toString()).also {
-//                    startService(it)
-//                    bindService(it, connection, BIND_AUTO_CREATE)
-//                }
-//            },
-//            pauseResume  = { audioService?.pauseResume() },
-//            previous = { audioService?.prev() },
-//            next = { audioService?.next() }
-//        )
         setContent {
             ProvideStoryVM {
                 val storyVM = LocalStory.current
@@ -216,6 +163,17 @@ class MainActivity : ComponentActivity() {
                     saveStoryIndex = { lifecycleScope.launch { save(STORY_INDEX, storyVM.storyIndex.value) } },
                 )
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // Check if the activity is finishing (i.e., app is closing)
+        if (isFinishing) {
+            // Stop the service here
+            val intent = Intent(this, AudioPlayerService::class.java)
+            stopService(intent)
         }
     }
 }
@@ -229,28 +187,6 @@ fun OHanashi(saveStoryIndex: () -> Unit) {
             ProvideNavController {
                 val navController = LocalNavHostController.current
                 val audioPlayer : VM_AudioPlayer = viewModel(factory = VM_AudioPlayerFactory(LocalContext.current.applicationContext as Application))
-
-                val lifecycleOwner = LocalLifecycleOwner.current
-                val lifecycle = lifecycleOwner.lifecycle
-                DisposableEffect(lifecycle) {
-                    val observer = LifecycleEventObserver { _, event ->
-//                        if (event == Lifecycle.Event.ON_STOP) {
-//                            // App goes to background, stop the service
-//                            viewModel.stopService(context)
-//                        }
-                        if (event == Lifecycle.Event.ON_DESTROY) {
-                            // App is being destroyed, stop the service if needed
-                            audioPlayer.stopService()
-                        }
-                    }
-
-                    lifecycle.addObserver(observer)
-
-                    onDispose {
-                        lifecycle.removeObserver(observer)
-                    }
-                }
-
 
                 Menus(navController, { darkTheme = !darkTheme}) {
                     NavHost(navController = navController, startDestination = Screen.StoryScreen.route) {

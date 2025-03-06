@@ -11,6 +11,7 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.support.v4.media.session.MediaSessionCompat
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.japanese.ohanashi.stories.defaultStories
@@ -47,10 +48,14 @@ class AudioPlayerService : Service() {
             this@AudioPlayerService.pauseResume()
         }
 
-        fun maxDuration()     = this@AudioPlayerService.maxDuration
-        fun currentDuration() = this@AudioPlayerService.currentDuration
-        fun isPlaying()       = this@AudioPlayerService.isPlaying
-        fun currentTrack()    = this@AudioPlayerService.currentTrack
+        fun pause() {
+            this@AudioPlayerService.pause()
+        }
+
+        fun currentTrackDuration() = this@AudioPlayerService.currentTrackDuration
+        fun currentPosition()      = this@AudioPlayerService.currentPosition
+        fun isPlaying()            = this@AudioPlayerService.isPlaying
+        fun currentTrack()         = this@AudioPlayerService.currentTrack
     }
 
     val binder               = ServiceBinder()
@@ -60,9 +65,9 @@ class AudioPlayerService : Service() {
     private val scope        = CoroutineScope(Dispatchers.Main)
     private var job : Job?   = null
 
-    val isPlaying       = MutableStateFlow(false)
-    val maxDuration     = MutableStateFlow(0f)
-    val currentDuration = MutableStateFlow(0f)
+    val isPlaying            = MutableStateFlow(false)
+    val currentTrackDuration = MutableStateFlow(0)
+    val currentPosition      = MutableStateFlow(0f)
 
     override fun onBind(p0: Intent?): IBinder? {
         return binder
@@ -89,6 +94,10 @@ class AudioPlayerService : Service() {
         return START_STICKY
     }
 
+    fun pause() {
+        mediaPlayer.pause()
+        sendNotification(currentTrack.value)
+    }
     fun pauseResume() {
         if (mediaPlayer.isPlaying) {
             mediaPlayer.pause()
@@ -150,10 +159,10 @@ class AudioPlayerService : Service() {
 
             if (!mediaPlayer.isPlaying) return@launch
 
-            maxDuration.update { mediaPlayer.duration.toFloat() }
+            currentTrackDuration.update { mediaPlayer.duration }
 
             while(true) {
-                currentDuration.update { mediaPlayer.currentPosition.toFloat() }
+                currentPosition.update { mediaPlayer.currentPosition.toFloat() }
                 delay(100)
             }
 
@@ -199,6 +208,7 @@ class AudioPlayerService : Service() {
             .addAction(R.drawable.ic_baseline_navigate_next_24, "next", createNextPendingIntent())
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setProgress(100, 25, false)
+            .setOngoing(true) // set to show up on lock screen
 //            .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.big_image))
             .build()
 
@@ -237,7 +247,15 @@ class AudioPlayerService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         // Cleanup when the service is destroyed
-        stopForeground(true)
+//        mediaPlayer.release()
+//        stopForeground(true)
+//        stopForeground(1)
+        job?.cancel()
+        job = null
+        if (mediaPlayer.isPlaying()) {
+            mediaPlayer.stop()
+        }
+        mediaPlayer.release()
         stopSelf()
     }
 
