@@ -58,7 +58,7 @@ class AudioPlayerService : Service() {
     private val currentTrack = MutableStateFlow<Story>(defaultStories[0])
     private var trackList    = defaultStories.toMutableList()
     private val scope        = CoroutineScope(Dispatchers.Main)
-    private var job : Job? = null
+    private var job : Job?   = null
 
     val isPlaying       = MutableStateFlow(false)
     val maxDuration     = MutableStateFlow(0f)

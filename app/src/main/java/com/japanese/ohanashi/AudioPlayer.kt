@@ -148,21 +148,21 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
         }
     }
     fun stopService() {
-        audioServiceBinder?.pauseResume()
+       // audioServiceBinder?.pauseResume()
 
 //        isPlaying.value = false
-//        if (mBound.value == true)
-//        {
-//            val context = getApplication<Application>()
-//            val stopIntent  = Intent(context, AudioPlayerService::class.java)
-//            context.stopService(stopIntent)
-//            context.unbindService(connection)
-////        Intent(context, AudioPlayerService::class.java).also {
-////            it.action = AudioPlayerService.Actions.Stop.toString()
-////            context.stopService(it)
-//            isServiceRunning.postValue(false)
-////        }
+        if (mBound.value == true)
+        {
+            val context = getApplication<Application>()
+            val stopIntent  = Intent(context, AudioPlayerService::class.java)
+            context.unbindService(connection)
+            context.stopService(stopIntent)
+//        Intent(context, AudioPlayerService::class.java).also {
+//            it.action = AudioPlayerService.Actions.Stop.toString()
+//            context.stopService(it)
+            isServiceRunning.postValue(false)
 //        }
+        }
     }
 
     fun setStartTime(startTime: Float) {
@@ -238,6 +238,19 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
         val end    = endTimeMillis
         val result = ((player.currentPosition - start) / (end - start).toFloat())
         return result
+    }
+
+    fun togglePlay()
+    {
+        if (isPlaying.value && mBound.value == true)
+        {
+            audioServiceBinder?.pauseResume()
+        }
+        else
+        {
+            startService()
+        }
+
     }
 
     fun play() {

@@ -63,10 +63,15 @@ import com.japanese.ohanashi.ui.theme.SoftWhite
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import android.util.Log
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 /**
 TODO:
@@ -224,6 +229,28 @@ fun OHanashi(saveStoryIndex: () -> Unit) {
             ProvideNavController {
                 val navController = LocalNavHostController.current
                 val audioPlayer : VM_AudioPlayer = viewModel(factory = VM_AudioPlayerFactory(LocalContext.current.applicationContext as Application))
+
+                val lifecycleOwner = LocalLifecycleOwner.current
+                val lifecycle = lifecycleOwner.lifecycle
+                DisposableEffect(lifecycle) {
+                    val observer = LifecycleEventObserver { _, event ->
+//                        if (event == Lifecycle.Event.ON_STOP) {
+//                            // App goes to background, stop the service
+//                            viewModel.stopService(context)
+//                        }
+                        if (event == Lifecycle.Event.ON_DESTROY) {
+                            // App is being destroyed, stop the service if needed
+                            audioPlayer.stopService()
+                        }
+                    }
+
+                    lifecycle.addObserver(observer)
+
+                    onDispose {
+                        lifecycle.removeObserver(observer)
+                    }
+                }
+
 
                 Menus(navController, { darkTheme = !darkTheme}) {
                     NavHost(navController = navController, startDestination = Screen.StoryScreen.route) {
@@ -410,10 +437,7 @@ fun StoryScreen(
 //                    viewModel.showMillis.value = !viewModel.showMillis.value
                 },
                 onTogglePlayButtonClick = {
-                    if (isPlaying.value)
-                        audioPlayer.stopService()
-                    else
-                        audioPlayer.startService()
+                    audioPlayer.togglePlay()
                 },
                 isPlaying = isPlaying.value,
                 currentTimeText = audioPlayer.formatCurrentTime() ?: "---" //viewModel.formatNormalizedPositionTime(sliderPosition)
