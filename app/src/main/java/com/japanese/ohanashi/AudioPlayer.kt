@@ -65,26 +65,30 @@ fun ProvideAudioPlayer(application: Application, content: @Composable () -> Unit
 
 class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
     var onProgressUpdate: (newProgress: Float) -> Unit = {}
-
-    // should all of these be LiveData?
-    val isPlaying:  MutableState<Boolean> = mutableStateOf(false)
-    val showMillis: MutableState<Boolean> = mutableStateOf(false)
-    val progress:   MutableState<Float>   = mutableStateOf(0f)
-    val currentPosition: MutableState<Float> = mutableStateOf(0f)
-    val duration:        MutableState<Int>   = mutableStateOf(0)
-    // the time in seconds where playback should start
-    private val startTime: MutableState<Float> = mutableStateOf(-1f)
-    // the time in seconds when playback should end
-    private val endTime: MutableState<Float> = mutableStateOf(-1f)
     private var progressUpdateJob : Job?   = null
 
+    val showMillis: MutableState<Boolean> = mutableStateOf(false)
+    // the time in seconds where playback should start
+    private val startTime = mutableFloatStateOf(-1f)
+    // the time in seconds when playback should end
+    private val endTime   = mutableFloatStateOf(-1f)
+    private val startTimeMillis: Long get() = calcStartTime()
+    private val endTimeMillis:   Long get() = calcEndTime()
+    private val durationMillis:  Long get() = calcDuration()
+
+    // Set from Service
+    // should all of these be LiveData?
+    val isPlaying       = mutableStateOf(false)
+    val progress        = mutableFloatStateOf(0f)
+    val currentPosition = mutableFloatStateOf(0f)
+    val duration        = mutableIntStateOf(0)
     private var isServiceRunning = MutableLiveData(false)
-    private var mBound = MutableLiveData(false)
+    private var mBound           = MutableLiveData(false)
 //    val IsServiceRunning : LiveData<Boolean> = isServiceRunning
 //    val IsBound: LiveData<Boolean> = mBound
-    var audioServiceBinder : AudioPlayerService.ServiceBinder? = null
 
-    val connection = object : ServiceConnection {
+    private var audioServiceBinder : AudioPlayerService.ServiceBinder? = null
+    private val connection = object : ServiceConnection {
 
         override fun onServiceConnected(p0: ComponentName?, binder: IBinder?) {
             audioServiceBinder = (binder as AudioPlayerService.ServiceBinder)
@@ -100,12 +104,12 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
             }
             viewModelScope.launch {
                 binder.currentPosition().collectLatest {
-                    currentPosition.value = it
+                    currentPosition.floatValue = it
                 }
             }
             viewModelScope.launch {
                 binder.currentTrackDuration().collectLatest {
-                    duration.value = it
+                    duration.intValue = it
                 }
             }
 
@@ -123,7 +127,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun startService()
+    private fun startService()
     {
         if (mBound.value == false)
         {
@@ -139,7 +143,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 //            }
         }
     }
-    fun stopService() {
+    private fun stopService() {
         val context = getApplication<Application>()
         if (mBound.value == true)
         {
@@ -157,25 +161,21 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 //        }
     }
 
-    fun setStartTime(startTime: Float) {
-        this.startTime.value = startTime
+    private fun setStartTime(startTime: Float) {
+        this.startTime.floatValue = startTime
 //        if (startTimeMillis > player.currentPosition) {
 //            player.seekTo(startTimeMillis)
 //        }
     }
-    fun setEndTime(startTime: Float) {
-        this.endTime.value = startTime
+    private fun setEndTime(startTime: Float) {
+        this.endTime.floatValue = startTime
 //        if (endTimeMillis < player.currentPosition) {
 //            player.seekTo(endTimeMillis)
 //        }
     }
 
-    val startTimeMillis: Long get() = calcStartTime()
-    val endTimeMillis:   Long get() = calcEndTime()
-    val durationMillis:  Long get() = calcDuration()
-
     fun formatCurrentTime(): String {
-        return formatNormalizedPositionTime(progress.value)
+        return formatNormalizedPositionTime(progress.floatValue)
     }
 
     fun formatNormalizedPositionTime(position: Float): String {
@@ -194,35 +194,35 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
         return if (hours > 0) "%02d:%02d:%02d".format(hours,minutes,seconds) else "%02d:%02d".format(minutes,seconds)
     }
 
-    fun calcDuration(): Long {
+    private fun calcDuration(): Long {
         return endTimeMillis - startTimeMillis
     }
 
-    fun calcStartTime(): Long {
+    private fun calcStartTime(): Long {
         if (startTime.value <= 0) return 0
 
-        val startMillis = (startTime.value * 1000L).toLong()
+        val startMillis = (startTime.floatValue * 1000L).toLong()
 //        if (startMillis > player.duration) return player.duration
 
         return startMillis
     }
 
-    fun calcEndTime(): Long {
-        if (endTime.value <= 0) return duration.value.toLong()
+    private fun calcEndTime(): Long {
+        if (endTime.floatValue <= 0) return duration.intValue.toLong()
 //        if (endIndex.value < startIndex.value) return startTime
 
-        val endMillis = (endTime.value * 1000L).toLong()
+        val endMillis = (endTime.floatValue * 1000L).toLong()
 //        if (endMillis > player.duration) return player.duration
 
         return endMillis
     }
 
 //    val mappedProgress: Float get() = calcMappedProgress()
-    fun calcMappedProgress(): Float {
+    private fun calcMappedProgress(): Float {
 //        if (startIndex.value > endIndex.value) return 0f
         val start  = startTimeMillis
         val end    = endTimeMillis
-        val result = ((currentPosition.value - start) / (end - start).toFloat())
+        val result = ((currentPosition.floatValue - start) / (end - start).toFloat())
         return result
     }
 
@@ -258,7 +258,6 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 
     fun pause() {
         audioServiceBinder?.pause()
-//        isPlaying.value = false
     }
 
     fun setProgress(newProgress: Float) {
@@ -271,9 +270,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
             seekTo = ((start + ((end - start) * newProgress)) * 1000f).toLong()
         }
         audioServiceBinder?.seekTo(seekTo.toInt())
-//        player.playWhenReady = isPlaying.value
-//        progress.value = newProgress
-//        player.seekTo(seekTo)
+
     }
 
     private fun startProgressUpdate() {
@@ -320,6 +317,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
         setStartTime(startTimeSeconds)
         setEndTime(endTimeSeconds)
         if (resetProgress) {
+            audioServiceBinder?.seekTo(startTimeMillis.toInt())
 //            player.seekTo(startTimeMillis)
 //            if (player.currentPosition > 0) {
 //                progress.value = 0f

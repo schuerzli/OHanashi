@@ -123,7 +123,8 @@ class AudioPlayerService : Service() {
         job?.cancel()
 
         mediaPlayer.reset()
-        mediaPlayer = MediaPlayer()
+//        mediaPlayer.release()
+//        mediaPlayer = MediaPlayer()
 
         val index = trackList.indexOf(currentTrack.value)
         val prevIndex = if (index>0) index - 1 else trackList.size - 1
