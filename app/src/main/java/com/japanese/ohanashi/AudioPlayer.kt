@@ -199,7 +199,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
     }
 
     private fun calcStartTime(): Long {
-        if (startTime.value <= 0) return 0
+        if (startTime.floatValue <= 0) return 0
 
         val startMillis = (startTime.floatValue * 1000L).toLong()
 //        if (startMillis > player.duration) return player.duration
@@ -260,12 +260,15 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
         audioServiceBinder?.pause()
     }
 
+    /**
+     * seek to the normalized progress between currently set startTime and endTime
+     */
     fun setProgress(newProgress: Float) {
 
-        var seekTo: Long = (newProgress * duration.value).toLong()
-        if (startTime.value > 0 || endTime.value > 0) {
-            val start = if(startTime.value > 0) startTime.value else 0f
-            val end =   if(endTime.value <= 0 || endTime.value > duration.value / 1000f) (duration.value / 1000f) else endTime.value
+        var seekTo: Long = (newProgress * duration.intValue).toLong()
+        if (startTime.floatValue > 0 || endTime.floatValue > 0) {
+            val start = if(startTime.floatValue >  0) startTime.floatValue else 0f
+            val end =   if(endTime.floatValue   <= 0 || endTime.floatValue > duration.intValue / 1000f) (duration.intValue / 1000f) else endTime.floatValue
 
             seekTo = ((start + ((end - start) * newProgress)) * 1000f).toLong()
         }
@@ -279,11 +282,14 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 
 //            while(isPlaying.value) {
             while(true) {
-                progress.value = calcMappedProgress()
-                onProgressUpdate(progress.value)
+                progress.floatValue = calcMappedProgress()
+                onProgressUpdate(progress.floatValue)
                 delay(100L)
     //            // TODO: player.currentPosition is -superHighNumber for some time after first play :(
-    //            if (player.currentPosition >= endTimeMillis) stop()
+                if (currentPosition.floatValue >= endTimeMillis) {
+                    setProgress(0f)
+                    audioServiceBinder?.pause()
+                }
             }
 
         }

@@ -62,7 +62,7 @@ class AudioPlayerService : Service() {
         fun currentTrack()         = this@AudioPlayerService.currentTrack
     }
 
-    val binder               = ServiceBinder()
+    private val binder       = ServiceBinder()
     private var mediaPlayer  = MediaPlayer()
     private val currentTrack = MutableStateFlow<Story>(defaultStories[0])
     private var trackList    = defaultStories.toMutableList()
@@ -124,7 +124,7 @@ class AudioPlayerService : Service() {
 
         mediaPlayer.reset()
 //        mediaPlayer.release()
-//        mediaPlayer = MediaPlayer()
+        mediaPlayer = MediaPlayer()
 
         val index = trackList.indexOf(currentTrack.value)
         val prevIndex = if (index>0) index - 1 else trackList.size - 1
