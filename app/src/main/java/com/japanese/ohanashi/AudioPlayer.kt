@@ -270,7 +270,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 
             seekTo = ((start + ((end - start) * newProgress)) * 1000f).toLong()
         }
-
+        audioServiceBinder?.seekTo(seekTo.toInt())
 //        player.playWhenReady = isPlaying.value
 //        progress.value = newProgress
 //        player.seekTo(seekTo)

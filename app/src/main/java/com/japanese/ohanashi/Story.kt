@@ -494,7 +494,7 @@ fun StoryViewStateless(
             }
         }
 
-//        AudioPlayerControls(audioPlayer, audioId, modifier = Modifier.height(140.dp), audioStartTime, audioEndTime)
+        AudioPlayerControls(audioPlayer, audioId, modifier = Modifier.height(140.dp), audioStartTime, audioEndTime)
 
         Box(modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp))
         {

@@ -358,26 +358,26 @@ fun StoryScreen(
                 LocalStory.current.storyIndex.value = LocalStory.current.stories.value.lastIndex
             }
 
-            AudioPlayerStateless(
-                modifier = Modifier.height(140.dp),
-                0f,
-                onSliderValueChange = {
-//                    sliderDragging = true
+//            AudioPlayerStateless(
+//                modifier = Modifier.height(140.dp),
+//                0f,
+//                onSliderValueChange = {
+////                    sliderDragging = true
 //                    sliderPosition = it
-                },
-                onSliderValueChangeFinished = {
-//                    sliderDragging = false
-//                    viewModel.setProgress(sliderPosition)
-                },
-                onToggleMillisClicked = {
-//                    viewModel.showMillis.value = !viewModel.showMillis.value
-                },
-                onTogglePlayButtonClick = {
-                    audioPlayer.togglePlay()
-                },
-                isPlaying = isPlaying.value,
-                currentTimeText = audioPlayer.formatCurrentTime() ?: "---" //viewModel.formatNormalizedPositionTime(sliderPosition)
-            )
+//                },
+//                onSliderValueChangeFinished = {
+////                    sliderDragging = false
+////                    viewModel.setProgress(sliderPosition)
+//                },
+//                onToggleMillisClicked = {
+////                    viewModel.showMillis.value = !viewModel.showMillis.value
+//                },
+//                onTogglePlayButtonClick = {
+//                    audioPlayer.togglePlay()
+//                },
+//                isPlaying = isPlaying.value,
+//                currentTimeText = audioPlayer.formatCurrentTime() ?: "---" //viewModel.formatNormalizedPositionTime(sliderPosition)
+//            )
 
             StoryViewControl(
                 navController  = navController,

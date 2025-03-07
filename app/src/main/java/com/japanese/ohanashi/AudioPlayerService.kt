@@ -52,6 +52,10 @@ class AudioPlayerService : Service() {
             this@AudioPlayerService.pause()
         }
 
+        fun seekTo(positionMillis: Int) {
+            this@AudioPlayerService.seekTo(positionMillis)
+        }
+
         fun currentTrackDuration() = this@AudioPlayerService.currentTrackDuration
         fun currentPosition()      = this@AudioPlayerService.currentPosition
         fun isPlaying()            = this@AudioPlayerService.isPlaying
@@ -106,6 +110,13 @@ class AudioPlayerService : Service() {
             mediaPlayer.start()
         }
         sendNotification(currentTrack.value)
+    }
+
+    fun seekTo(positionMillis: Int)
+    {
+//        mediaPlayer.playWhenReady = isPlaying.value
+//        progress.value = newProgress
+        mediaPlayer.seekTo(positionMillis)
     }
 
     fun prev() {
