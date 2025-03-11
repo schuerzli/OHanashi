@@ -28,6 +28,11 @@ const val NEXT = "next"
 const val PLAY_PAUSE = "play_pause"
 
 class AudioPlayerService : Service() {
+    enum class PlaybackMode {
+        LoopPlaylist,
+        LoopTrack,
+        Single
+    }
     enum class Actions {
         Previous,
         Next,
@@ -72,6 +77,7 @@ class AudioPlayerService : Service() {
     val isPlaying            = MutableStateFlow(false)
     val currentTrackDuration = MutableStateFlow(0)
     val currentPosition      = MutableStateFlow(0f)
+    val playbackMode         = PlaybackMode.LoopPlaylist
 
     override fun onBind(p0: Intent?): IBinder? {
         return binder
@@ -120,49 +126,23 @@ class AudioPlayerService : Service() {
     }
 
     fun prev() {
-        job?.cancel()
-
-        mediaPlayer.reset()
-//        mediaPlayer.release()
-        mediaPlayer = MediaPlayer()
-
         val index = trackList.indexOf(currentTrack.value)
         val prevIndex = if (index>0) index - 1 else trackList.size - 1
         if (prevIndex >= 0)
         {
             val prevItem = trackList[prevIndex]
-
             currentTrack.update { prevItem }
-
-            mediaPlayer.setDataSource(this, getRawUri(currentTrack.value.audioId))
-            mediaPlayer.prepareAsync()
-            mediaPlayer.setOnPreparedListener {
-                mediaPlayer.start()
-                sendNotification(currentTrack.value)
-                updateDuration()
-            }
+            play(currentTrack.value)
         }
     }
 
     fun next() {
-        job?.cancel()
-
-        mediaPlayer.reset()
-        mediaPlayer = MediaPlayer()
-
         val index = trackList.indexOf(currentTrack.value)
         val nextIndex = (index + 1).mod(trackList.size)
-        val nextItem = trackList.get(nextIndex);
 
+        val nextItem = trackList[nextIndex]
         currentTrack.update { nextItem }
-
-        mediaPlayer.setDataSource(this, getRawUri(nextItem.audioId))
-        mediaPlayer.prepareAsync()
-        mediaPlayer.setOnPreparedListener {
-            mediaPlayer.start()
-            sendNotification(currentTrack.value)
-            updateDuration()
-        }
+        play(currentTrack.value)
     }
 
     fun updateDuration() {
@@ -182,6 +162,7 @@ class AudioPlayerService : Service() {
     }
 
     private fun play(story: Story) {
+        job?.cancel()
         mediaPlayer.reset()
         mediaPlayer = MediaPlayer()
         mediaPlayer.setDataSource(this, getRawUri(story.audioId))
@@ -190,6 +171,23 @@ class AudioPlayerService : Service() {
             mediaPlayer.start()
             sendNotification(story)
             updateDuration()
+            mediaPlayer.setOnCompletionListener {
+                when (playbackMode) {
+
+                    PlaybackMode.LoopPlaylist -> {
+                        next()
+                    }
+                    PlaybackMode.LoopTrack -> {
+                        seekTo(0)
+                        mediaPlayer.start()
+                    }
+                    PlaybackMode.Single -> {
+                        seekTo(0)
+                        isPlaying.update { mediaPlayer.isPlaying }
+                    }
+
+                }
+            }
         }
     }
 
@@ -221,7 +219,7 @@ class AudioPlayerService : Service() {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setProgress(100, 25, false)
             .setOngoing(true) // set to show up on lock screen
-//            .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.big_image))
+//            .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.big_image))0
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

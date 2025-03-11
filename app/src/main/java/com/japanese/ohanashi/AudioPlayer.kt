@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
-import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -25,15 +24,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.Player.Listener
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory
 import com.google.android.exoplayer2.util.Util
@@ -42,7 +38,6 @@ import com.japanese.ohanashi.ui.theme.OHanashiTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class VM_AudioPlayerFactory(val application:Application) : ViewModelProvider.NewInstanceFactory() {
@@ -64,7 +59,6 @@ fun ProvideAudioPlayer(application: Application, content: @Composable () -> Unit
 }
 
 class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
-    var onProgressUpdate: (newProgress: Float) -> Unit = {}
     private var progressUpdateJob : Job?   = null
 
     val showMillis: MutableState<Boolean> = mutableStateOf(false)
@@ -72,9 +66,6 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
     private val startTime = mutableFloatStateOf(-1f)
     // the time in seconds when playback should end
     private val endTime   = mutableFloatStateOf(-1f)
-    private val startTimeMillis: Long get() = calcStartTime()
-    private val endTimeMillis:   Long get() = calcEndTime()
-    private val durationMillis:  Long get() = calcDuration()
 
     // Set from Service
     // should all of these be LiveData?
@@ -139,7 +130,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 //                it.action = AudioPlayerService.Actions.Start.toString()
 //                context.startService(it)
 //                context.bindService(it, connection, BIND_AUTO_CREATE)
-                isServiceRunning.postValue(true)
+            isServiceRunning.postValue(true)
 //            }
         }
     }
@@ -179,7 +170,7 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
     }
 
     fun formatNormalizedPositionTime(position: Float): String {
-        val currentTime: Long = (durationMillis * position).toLong()
+        val currentTime: Long = (calcDurationMillis() * position).toLong()
         val secondsTotal: Float = currentTime / 1000f
         val seconds: Int =  (secondsTotal % 60).toInt()
         val minutes: Int = ((secondsTotal / 60f) % 60).toInt()
@@ -194,34 +185,27 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
         return if (hours > 0) "%02d:%02d:%02d".format(hours,minutes,seconds) else "%02d:%02d".format(minutes,seconds)
     }
 
-    private fun calcDuration(): Long {
-        return endTimeMillis - startTimeMillis
+    private fun calcDurationMillis(): Long {
+        return calcEndTimeMillis() - calcStartTimeMillis()
     }
 
-    private fun calcStartTime(): Long {
-        if (startTime.floatValue <= 0) return 0
-
+    private fun calcStartTimeMillis(): Long {
+        if (startTime.floatValue <= 0) { return 0 }
         val startMillis = (startTime.floatValue * 1000L).toLong()
-//        if (startMillis > player.duration) return player.duration
-
         return startMillis
     }
 
-    private fun calcEndTime(): Long {
-        if (endTime.floatValue <= 0) return duration.intValue.toLong()
-//        if (endIndex.value < startIndex.value) return startTime
-
+    private fun calcEndTimeMillis(): Long {
+        if (endTime.floatValue <= 0) { return duration.intValue.toLong() }
         val endMillis = (endTime.floatValue * 1000L).toLong()
-//        if (endMillis > player.duration) return player.duration
-
         return endMillis
     }
 
 //    val mappedProgress: Float get() = calcMappedProgress()
-    private fun calcMappedProgress(): Float {
+    private fun calcNormalizedProgress(): Float {
 //        if (startIndex.value > endIndex.value) return 0f
-        val start  = startTimeMillis
-        val end    = endTimeMillis
+        val start  = calcStartTimeMillis()
+        val end    = calcEndTimeMillis()
         val result = ((currentPosition.floatValue - start) / (end - start).toFloat())
         return result
     }
@@ -273,7 +257,6 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
             seekTo = ((start + ((end - start) * newProgress)) * 1000f).toLong()
         }
         audioServiceBinder?.seekTo(seekTo.toInt())
-
     }
 
     private fun startProgressUpdate() {
@@ -282,14 +265,13 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 
 //            while(isPlaying.value) {
             while(true) {
-                progress.floatValue = calcMappedProgress()
-                onProgressUpdate(progress.floatValue)
+                progress.floatValue = calcNormalizedProgress()
                 delay(100L)
     //            // TODO: player.currentPosition is -superHighNumber for some time after first play :(
-                if (currentPosition.floatValue >= endTimeMillis) {
-                    setProgress(0f)
-                    audioServiceBinder?.pause()
-                }
+//                if (currentPosition.floatValue >= calcEndTimeMillis()) {
+//                    setProgress(0f)
+//                    audioServiceBinder?.pause()
+//                }
             }
 
         }
@@ -299,31 +281,11 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
         progressUpdateJob = null
     }
 
-//    private suspend fun startProgressUpdate()
-//    {
-//        while(isPlaying.value) {
-//            progress.value = calcMappedProgress()
-//            onProgressUpdate(progress.value)
-//            delay(200L)
-//            // TODO: player.currentPosition is -superHighNumber for some time after first play :(
-//            if (player.currentPosition >= endTimeMillis) stop()
-//        }
-//    }
-
-//    private fun stop() {
-//        isPlaying.value = false
-//        player.playWhenReady = false
-//        player.pause()
-//        player.seekTo(startTimeMillis)
-//        progress.value = 0f
-//        onProgressUpdate(progress.value)
-//    }
-
     fun setStartAndEnd(startTimeSeconds: Float = -1f, endTimeSeconds: Float = -1f, resetProgress: Boolean = false) {
         setStartTime(startTimeSeconds)
         setEndTime(endTimeSeconds)
         if (resetProgress) {
-            audioServiceBinder?.seekTo(startTimeMillis.toInt())
+            audioServiceBinder?.seekTo(calcStartTimeMillis().toInt())
 //            player.seekTo(startTimeMillis)
 //            if (player.currentPosition > 0) {
 //                progress.value = 0f
@@ -334,11 +296,11 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
     fun setAudio(context: Context, resourceId: Int, startTimeSeconds: Float = -1f, endTimeSeconds: Float = -1f) {
         setStartTime(startTimeSeconds)
         setEndTime(endTimeSeconds)
-        val resource = "android.resource://${context.packageName}/${resourceId}"
+//        val resource = "android.resource://${context.packageName}/${resourceId}"
 
-        val dataSourceFactory = DefaultDataSourceFactory(context, Util.getUserAgent(context, context.packageName))
-        val mediaItem = MediaItem.fromUri(resource)
-        val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
+//        val dataSourceFactory = DefaultDataSourceFactory(context, Util.getUserAgent(context, context.packageName))
+//        val mediaItem = MediaItem.fromUri(resource)
+//        val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(mediaItem)
 //        player.setMediaSource(mediaSource)
 ////        player.addMediaSource(mediaSource)
 //        player.prepare()
@@ -358,6 +320,10 @@ class VM_AudioPlayer(application: Application) : AndroidViewModel(application) {
 fun AudioPlayerControls(viewModel: VM_AudioPlayer, resourceId: Int, modifier: Modifier = Modifier, startTime: Float, endTime: Float, showMillis: Boolean = false) {
     val context = LocalContext.current
     viewModel.setAudio(context, resourceId, startTime, endTime)
+    Row{
+        Text(startTime.toString())
+        Text(endTime.toString())
+    }
     // seperated out to avoid setAudio call on every recomposition when the slider changes
     AudioPlayerControlsImpl(modifier, viewModel, showMillis)
 }
@@ -365,13 +331,14 @@ fun AudioPlayerControls(viewModel: VM_AudioPlayer, resourceId: Int, modifier: Mo
 @Composable
 fun AudioPlayerControlsImpl(modifier: Modifier = Modifier, viewModel: VM_AudioPlayer, showMillis: Boolean = false) {
     val isPlaying = viewModel.isPlaying.value
-    var sliderPosition by remember { mutableStateOf(viewModel.progress.value) }
+//    var sliderPosition by remember { mutableStateOf(viewModel.progress.floatValue) }
+    var sliderPosition by remember { viewModel.progress }
     var sliderDragging by remember { mutableStateOf(false) }
 
-    viewModel.onProgressUpdate = {
-        if (!sliderDragging)
-            sliderPosition = it
-    }
+//    viewModel.onProgressUpdate = {
+//        if (!sliderDragging)
+//            sliderPosition = it
+//    }
 
     AudioPlayerStateless(
         modifier,
