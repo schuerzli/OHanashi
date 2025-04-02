@@ -112,7 +112,7 @@ class VM_Story(context: Context) : ViewModel() {
     var storyIndex:   MutableState<Int> = mutableStateOf(0)
     var cardIndex:    MutableState<Int> = mutableStateOf(0)
     var showFurigana: MutableState<Boolean> = mutableStateOf(false)
-    var kanaOnly:    MutableState<Boolean> = mutableStateOf(false)
+    var kanaOnly:     MutableState<Boolean> = mutableStateOf(false)
     var showNotes:    MutableState<Boolean> = mutableStateOf(false)
 
     init {
@@ -124,203 +124,30 @@ class VM_Story(context: Context) : ViewModel() {
             }
         }
     }
-}
-/*
-@ExperimentalMaterialApi
-@Composable
-fun Story(
-    navController: NavController,
-    fontSize: TextUnit = TextUnit.Unspecified,
-    showFurigana: Boolean,
-    toggleFurigana: () -> Unit
-) {
-    val cardIndex = LocalStory.current.cardIndex
-    val audioPlayer = LocalAudioPlayer.current
-    val showNotes = LocalStory.current.showNotes
-    val story: Story = LocalStory.current.stories.value[LocalStory.current.storyIndex.value]
 
-    if (cardIndex.value < 0) error("Story cardIndex was < 0 (${cardIndex.value})!")
-    if (cardIndex.value > story.cards.lastIndex) error("Story cardIndex > last entry index (${cardIndex.value} > ${story.cards.lastIndex})!")
-
+    fun parseStartTime(card: StoryCard ): Float {
+        return card.getStartTime()
+    }
+    fun parseEndTime(card: StoryCard ): Float {
+        return card.getEndTime()
+    }
     fun getStartTime(): Float {
-        if (cardIndex.value == 0 || story.cards[cardIndex.value].audioStartTime > 0)
-            return story.cards[cardIndex.value].audioStartTime
+        if (cardIndex.value == 0 || defaultStories[storyIndex.value].cards[cardIndex.value].audioStartTime > 0)
+            return parseStartTime(defaultStories[storyIndex.value].cards[cardIndex.value]) //.audioStartTime
 
-        return story.cards[cardIndex.value-1].audioEndTime
+        return parseEndTime(defaultStories[storyIndex.value].cards[cardIndex.value-1]) //.audioEndTime
     }
     fun nextCard() {
-        if (cardIndex.value < story.cards.lastIndex) {
+        if (cardIndex.value < defaultStories[storyIndex.value].cards.lastIndex) {
             ++cardIndex.value
-            audioPlayer.pause()
-            audioPlayer.setStartAndEnd(
-                startTimeSeconds = getStartTime(),
-                endTimeSeconds   = story.cards[cardIndex.value].audioEndTime,
-                resetProgress = true,
-            )
         }
     }
     fun prevCard() {
         if (cardIndex.value > 0) {
             --cardIndex.value
-            audioPlayer.pause()
-            audioPlayer.setStartAndEnd(
-                startTimeSeconds = getStartTime(),
-                endTimeSeconds   = story.cards[cardIndex.value].audioEndTime,
-                resetProgress = true,
-            )
-        }
-    }
-
-    val storyCard = story.cards[cardIndex.value]
-    Column(modifier = Modifier.fillMaxWidth()) {
-        val scrollState = rememberScrollState()
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .weight(1f)
-        ) {
-            val swipeableState = rememberSwipeableState(
-                initialValue = 0,
-                confirmStateChange = {
-                    if (it <= -1) nextCard()
-                    if (it >=  1) prevCard()
-                    // we never want to stay in the target state, it's just a trigger
-                    false
-                }
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(swipeableState.offset.value.dp * 0.125f)
-                    .clip(SemicircleShape(Direction.Right))
-                    .background(Color(0.5f, 0.5f, 0.5f, 0.2f))
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .fillMaxHeight()
-                    .width(-swipeableState.offset.value.dp * 0.125f)
-                    .clip(SemicircleShape(Direction.Left))
-                    .background(Color(0.5f, 0.5f, 0.5f, 0.2f))
-            )
-            SelectionContainer(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .swipeable(
-                        state = swipeableState,
-                        anchors = mapOf(0f to 0, 200f to 1, -200f to -1),
-                        orientation = Orientation.Horizontal,
-                    )
-            ) {
-                Column(modifier = Modifier
-                    .verticalScroll(scrollState)
-                    .fillMaxWidth()
-                    .padding(start = 15.dp, end = 15.dp)
-                ) {
-//                    FuriganaText(
-//                        text = "---== ${story.title} ==---",
-//                        fontSize = 25.sp,
-//                        modifier = Modifier.align(Alignment.CenterHorizontally),
-//                        showFurigana = showFurigana
-//                    )
-                    FuriganaText(
-                        storyCard.text,
-                        fontSize = fontSize,
-                        showFurigana = showFurigana,
-                    )
-                    if (showNotes.value && storyCard.notes.isNotBlank()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(getTextColor())
-                                .padding(10.dp)
-                        )
-                        FuriganaText(
-                            storyCard.notes,
-                            fontSize = fontSize,
-                            showFurigana = showFurigana,
-                        )
-                    }
-                }
-            }
-//            Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceBetween) {
-//                val swipeAreaWidth = 70.dp
-//                SwipeActionArea(
-//                    direction = Direction.Right,
-//                    swipeAreaWidth = swipeAreaWidth,
-//                    modifier = Modifier
-//                        .background(Color(0f, 0f, 0f, 0.125f))
-//                        .width(10.dp)
-//                        .fillMaxHeight(),
-//                    onSwipeAction = { prevCard() }
-//                )
-//                SwipeActionArea(
-//                    direction = Direction.Left,
-//                    swipeAreaWidth = swipeAreaWidth,
-//                    modifier = Modifier
-//                        .width(swipeAreaWidth)
-//                        .fillMaxHeight(),
-//                    onSwipeAction = { nextCard() }
-//                )
-//            }
-        }
-
-        AudioPlayerControls(story.audioId, modifier = Modifier.height(140.dp), getStartTime(), storyCard.audioEndTime)
-
-        Box(modifier = Modifier.fillMaxWidth())
-        {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(5.dp)
-            ) {
-                ControlButton(
-                    iconResource = R.drawable.ic_baseline_navigate_before_24,
-                    buttonSize = 30.dp,
-                    contentDescription = "PreviousCard",
-                ) { prevCard() }
-                Row(horizontalArrangement = Arrangement.Center) {
-                    ControlButton(
-                        iconResource = R.drawable.ic_baseline_notes_24,
-                        buttonSize = 30.dp,
-                        iconSize = 22.dp,
-                        invert = showNotes.value,
-                        contentDescription = "ToggleNotes",
-                        onClick = { showNotes.value = !showNotes.value }
-                    )
-                    ControlButton(
-                        iconResource = R.drawable.ic_baseline_translate_24,
-                        buttonSize = 30.dp,
-                        invert = showFurigana,
-                        contentDescription = "ToggleFurigana",
-                        onClick = toggleFurigana
-                    )
-                }
-                ControlButton(
-                    iconResource = R.drawable.ic_baseline_navigate_next_24,
-                    buttonSize = 30.dp,
-                    contentDescription = "NextCard",
-                ) { nextCard() }
-            }
-            Column(
-//                horizontalArrangement = Arrangement.SpaceAround,
-//                verticalAlignment = Alignment.CenterVertically,
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-                    .align(Alignment.Center)
-            ) {
-//                Text("${cardIndex.value+1}/${story.cards.size}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.CenterVertically))
-                Text("${cardIndex.value+1}/${story.cards.size}", fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.align(Alignment.CenterHorizontally))
-                Spacer(Modifier.size(10.dp))
-            }
         }
     }
 }
-*/
 
 @ExperimentalMaterialApi
 @Composable
@@ -334,7 +161,6 @@ fun StoryViewControl(
     toggleKanaOnly: () -> Unit,
 ) {
     val cardIndex    = LocalStory.current.cardIndex
-//    val audioPlayer  = LocalAudioPlayer.current
     val showNotes    = LocalStory.current.showNotes
     val story: Story = LocalStory.current.stories.value[LocalStory.current.storyIndex.value]
     val storyCard    = story.cards[cardIndex.value]
@@ -342,40 +168,7 @@ fun StoryViewControl(
     if (cardIndex.value < 0)                     error("Story cardIndex was < 0 (${cardIndex.value})!")
     if (cardIndex.value > story.cards.lastIndex) error("Story cardIndex > last entry index (${cardIndex.value} > ${story.cards.lastIndex})!")
 
-    fun parseStartTime(card: StoryCard ): Float {
-        return card.getStartTime()
-    }
-    fun parseEndTime(card: StoryCard ): Float {
-        return card.getEndTime()
-    }
-    fun getStartTime(): Float {
-        if (cardIndex.value == 0 || story.cards[cardIndex.value].audioStartTime > 0)
-            return parseStartTime(story.cards[cardIndex.value]) //.audioStartTime
-
-        return parseEndTime(story.cards[cardIndex.value-1]) //.audioEndTime
-    }
-    fun nextCard() {
-        if (cardIndex.value < story.cards.lastIndex) {
-            ++cardIndex.value
-            audioPlayer.pause()
-            audioPlayer.setStartAndEnd(
-                startTimeSeconds = getStartTime(),
-                endTimeSeconds   = story.cards[cardIndex.value].audioEndTime,
-                resetProgress = true,
-            )
-        }
-    }
-    fun prevCard() {
-        if (cardIndex.value > 0) {
-            --cardIndex.value
-            audioPlayer.pause()
-            audioPlayer.setStartAndEnd(
-                startTimeSeconds = getStartTime(),
-                endTimeSeconds   = story.cards[cardIndex.value].audioEndTime,
-                resetProgress = true,
-            )
-        }
-    }
+    var storyVM = LocalStory.current
     Box(modifier = Modifier.fillMaxSize().padding(10.dp))
     {
         StoryViewStateless(
@@ -389,10 +182,26 @@ fun StoryViewControl(
             cardIndex      = cardIndex.value,
             cardCount      = story.cards.size,
             audioId        = story.audioId,
-            audioStartTime = getStartTime(),
+            audioStartTime = storyVM.getStartTime(),
             audioEndTime   = storyCard.audioEndTime,
-            prevCard       = { prevCard() },
-            nextCard       = { nextCard() },
+            prevCard       = {
+                storyVM.prevCard()
+                audioPlayer.pause()
+                audioPlayer.setStartAndEnd(
+                    startTimeSeconds = storyVM.getStartTime(),
+                    endTimeSeconds   = story.cards[cardIndex.value].audioEndTime,
+                    resetProgress = true,
+                )
+             },
+            nextCard       = {
+                storyVM.nextCard()
+                audioPlayer.pause()
+                audioPlayer.setStartAndEnd(
+                    startTimeSeconds = storyVM.getStartTime(),
+                    endTimeSeconds   = story.cards[cardIndex.value].audioEndTime,
+                    resetProgress = true,
+                )
+             },
             toggleNotes    = { showNotes.value = !showNotes.value },
             toggleFurigana = toggleFurigana,
             toggleKanaOnly = toggleKanaOnly,
