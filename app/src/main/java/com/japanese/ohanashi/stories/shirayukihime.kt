@@ -63,7 +63,7 @@ Story(
         ),
         StoryCard(
             text = "おきさきは[魔法;まほう]のカガミを[持;と]っていて、いつも[魔法;まほう]のカガミにたずねます。",
-            notes = "- 魔法[まほう], magic/witchcraft/sorcery\n" +
+            notes = "- [魔法;まほう], magic/witchcraft/sorcery\n" +
                     "- いつも, always\n" +
                     "- たずね, question",
             audioStartTime = 11f,
@@ -71,8 +71,8 @@ Story(
         ),
         StoryCard(
             text = "「カガミよカガミよ、この[世;よ]で[一番;いちばん][美;うつく]しいのは[誰;だれ]？」",
-            notes = "- 世[よ], world/era\n" +
-                    "- 一番[いちばん], number one/most-/greatest",
+            notes = "- [世;よ], world/era\n" +
+                    "- [一番;いちばん], number one/most-/greatest",
             audioStartTime = 19f,
             audioEndTime   = 27f
         ),
@@ -82,9 +82,9 @@ Story(
                     "と、[答;こた]えるのを[待;ま]ちました。",
             notes = "- 様[よう], like/similar to\n" +
                     "- いつもの様に, always' likeness/ like always \n" +
-                    "- 待つ[まつ], to wait" +
+                    "- [待;ま]つ, to wait" +
                     "- しかし, however/but\n" +
-                    "- 娘[むすめ], daughter",
+                    "- [娘;むすめ], daughter",
             audioStartTime = 28f,
             audioEndTime   = 40f
         ),
@@ -92,16 +92,16 @@ Story(
             text = "しかしカガミは、\n" +
                     "「あなたの[娘;むすめ]、[白雪姫;しらゆきひめ]です」\n" +
                     "と、[答;こた]えたのです。",
-            notes = "- ２度目[にどめ], the second time",
+            notes = "- [２;に][度;ど][目;め], the second time",
             audioEndTime   = 50f
         ),
         StoryCard(
             text = "おきさきは、[白雪姫;しらゆきひめ]の２[度目;どめ]のお[母;かあ]さんです。",
-            notes = "- 激[はげ]しい, violent/furious\n" +
-                    "- 腹[はら], stomach/belly\n" +
-                    "- 立[た]てる, to raise/stand up\n" +
-                    "- 猟師[りょうし], hunter\n" +
-                    "- 殺[ころ]す, to kill \n" +
+            notes = "- [激;はげ]しい, violent/furious\n" +
+                    "- [腹;はら], stomach/belly\n" +
+                    "- [立;た]てる, to raise/stand up\n" +
+                    "- [猟師;りょうし], hunter\n" +
+                    "- [殺;ころ]す, to kill \n" +
                     "- 殺させ, cause to kill (in this case probably \"order to kill\")\n" +
                     "- (ようと, use/service/purpose?)",
             audioEndTime   = 54f,
@@ -113,31 +113,31 @@ Story(
         StoryCard(
             text = "でも[心;こころ]の[優;やさ]しい[猟師;りょうし]は[白雪姫;しらゆきひめ]をそっと[森;もり]の[中;なか]に[隠;かく]して、おきさきには[白雪姫;しらゆきひめ]を[殺;ころ]したとうそをついたのです。",
             notes = "- そっと, softly/quietly\n" +
-                    "- 森[もり], forest\n" +
-                    "- 中[なか], inside\n" +
-                    "- 隠す[かくす], to hide\n" +
+                    "- [森;もり], forest\n" +
+                    "- [中;なか], inside\n" +
+                    "- [隠す;かくす], to hide\n" +
                     "- うそ, lie\n" +
                     "- つく, ",
             audioEndTime   = 74.5f,
         ),
         StoryCard(
             text = "[白雪姫;しらゆきひめ]は、[森;もり]に[住;す]む[七人;しちにん]の[小人;こびと]たちと[暮;く]らす[事;こと]になりました。",
-            notes = "- 住む[すむ], to live/reside\n" +
-                    "- 小人[こびと], dwarf/dwarfism\n" +
-                    "- 暮らす[くらす], to live/get along/spend (time)",
+            notes = "- [住む;すむ], to live/reside\n" +
+                    "- [小人;こびと], dwarf/dwarfism\n" +
+                    "- [暮ら;すくらす], to live/get along/spend (time)",
             audioEndTime   = 81f,
         ),
         StoryCard(
             text = "そして[小人;こびと]たちが[山;やま]に[働;はたら]きに[行;い]っている[間;あいだ]、[掃除;そうじ]や[洗濯;せんたく]や[針仕事;はりしごと]をしたり、ごはんを作ったりして毎日を[楽;たの]しく[過;す]ごしました。",
             notes = "- そして, and/and then\n" +
-                    "- 間[あいだ], \n" +
-                    "- 掃除[そうじ], cleaning/sweeping/dusting/scrubbing\n" +
-                    "- 洗濯[せんたく], laundry\n" +
-                    "- 針仕事[はりしごと], needlework\n" +
+                    "- [間;あいだ], \n" +
+                    "- [掃除;そうじ], cleaning/sweeping/dusting/scrubbing\n" +
+                    "- [洗濯;せんたく], laundry\n" +
+                    "- [針仕事;はりしごと], needlework\n" +
                     "- たり/だり ending used for non-exhaustive list of actions. Marks ‘representative activities’ ‘I did things like …’\n" +
                     "- や used for non-exhaustive list of objects\n" +
-                    "- 楽[たの]しい, fun\n" +
-                    "- 過[す]ごす, to pass (time)/to spend;take care of/support\n" +
+                    "- [楽;たの]しい, fun\n" +
+                    "- [過;す]ごす, to pass (time)/to spend;take care of/support\n" +
                     "- And while the dwarfs went to work in the mountains,\n" +
                     "- [Snowwhite] joyfully spent each day cleaning, washing, doing needlework and making meals.",
             audioStartTime = 82f,
@@ -145,8 +145,8 @@ Story(
         ),
         StoryCard(
             text = "「[白雪姫;しらゆきひめ]、わたしたちが[仕事;しごと]に[行;い]っている[間;あいだ]、[誰;だれ]も[家;いえ]に[入;い]れちゃいけないよ。あの[怖;こわい]いおきさきに、ここが[知;し]られてしまうからね」",
-            notes = "- 怖[こわ]い, scary\n" +
-                    "- 知[し]られる, to be known\n" +
+            notes = "- [怖;こわ]い, scary\n" +
+                    "- [知;し]られる, to be known\n" +
                     "- しまう, to finish/stop/end\n" +
                     "- “Snowwhite, while we are at work, you should not let anyone in the house. That scary queen will find out about this place\" the dwarfs always said",
             audioEndTime   = 107f,

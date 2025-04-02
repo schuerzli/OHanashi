@@ -77,26 +77,29 @@ import androidx.lifecycle.LifecycleEventObserver
 
 /**
 TODO:
- - Restructure to properly use the AudioPlayerService (
-   - "reconnect" after configuration change
-   - display correct time code
-   - play correct audio (cards)
  - Use a custom notification layout with RemoteViews
- - (Load Story from json)
+ - Page slider for quickly scrolling through pages
  - Add scrollbar to Cards
- - "Randomize cards" option
+ - Playback options
+   - Randomize cards
+   - Loop Story
+   - Continue with next story
+ - 0.8x speed
  - Listening comprehension mode: play audio first, reveal transcript only after pressing a button
+
+ - (Load Story from json?)
  - Spaced repetition for cards function
  - Settings drop down with:
-    MainText Size
-    Furigana Size
-    Show notes
-    Show translation
+   - MainText Size
+   - Furigana Size
+   - Show notes
+   - Show translation
+
  - Edit Cards
-    Edit Card Text
-    Edit Card audio time stamps
-    Save/Load Cards
-    Access audio files from disk
+   - Edit Card Text
+   - Edit Card audio time stamps
+   - Save/Load Cards
+   - Access audio files from disk
 */
 
 // https://medium.com/mindorks/implementing-exoplayer-for-beginners-in-kotlin-c534706bce4b
@@ -357,27 +360,6 @@ fun StoryScreen(
             if (LocalStory.current.storyIndex.value > LocalStory.current.stories.value.lastIndex) {
                 LocalStory.current.storyIndex.value = LocalStory.current.stories.value.lastIndex
             }
-
-//            AudioPlayerStateless(
-//                modifier = Modifier.height(140.dp),
-//                0f,
-//                onSliderValueChange = {
-////                    sliderDragging = true
-//                    sliderPosition = it
-//                },
-//                onSliderValueChangeFinished = {
-////                    sliderDragging = false
-////                    viewModel.setProgress(sliderPosition)
-//                },
-//                onToggleMillisClicked = {
-////                    viewModel.showMillis.value = !viewModel.showMillis.value
-//                },
-//                onTogglePlayButtonClick = {
-//                    audioPlayer.togglePlay()
-//                },
-//                isPlaying = isPlaying.value,
-//                currentTimeText = audioPlayer.formatCurrentTime() ?: "---" //viewModel.formatNormalizedPositionTime(sliderPosition)
-//            )
 
             StoryViewControl(
                 navController  = navController,
